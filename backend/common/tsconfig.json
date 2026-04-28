@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@common/*": [
+        "backend/common/src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

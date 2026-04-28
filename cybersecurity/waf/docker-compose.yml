@@ -1,0 +1,45 @@
+services:
+  modsecurity:
+    image: owasp/modsecurity-crs:4-nginx-alpine-202601060501
+    container_name: modsecurity
+    user: "0"
+    ports:
+      - "443:8443"
+    environment:
+      # CRS config
+      - PARANOIA=2
+      - BLOCKING_PARANOIA=2
+      - ANOMALY_INBOUND=5
+      - ANOMALY_OUTBOUND=4
+      # Backend server
+      - BACKEND=https://api-gateway:3001
+      # ModSecurity engine
+      - MODSEC_RULE_ENGINE=On
+      # Audit logging
+      - MODSEC_AUDIT_ENGINE=RelevantOnly
+      - MODSEC_AUDIT_LOG=/var/log/modsec/modsec_audit.log
+      - MODSEC_AUDIT_LOG_FORMAT=JSON
+      - MODSEC_AUDIT_LOG_PARTS=ABFHZ
+      # Debug (désactivé pour éviter les erreurs de permissions)
+      - MODSEC_DEBUG_LOG=/var/log/modsec/modsec_debug.log
+      - MODSEC_DEBUG_LOG_LEVEL=0
+      # Request body
+      - MODSEC_REQUEST_BODY_ACCESS=On
+      - MODSEC_REQUEST_BODY_LIMIT=13107200
+      - MODSEC_REQUEST_BODY_LIMIT_ACTION=Reject
+      # Response body
+      - MODSEC_RESPONSE_BODY_ACCESS=Off
+    volumes:
+      - ./conf/modsecurity-custom.conf:/etc/modsecurity.d/owasp-crs/rules/99-custom.conf:z
+      - ./conf/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:z
+      - ./certs/cert.pem:/etc/nginx/conf/server.crt:ro,z
+      - ./certs/key.pem:/etc/nginx/conf/server.key:ro,z
+      - ../../logs/modsec:/var/log/modsec:z
+      - ../../logs/nginx:/var/log/nginx:z
+      - ./conf/nginx-rate-limit.conf:/etc/nginx/nginx-rate-limit.conf:ro,z
+      - ./conf/nginx-vhost.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro,z
+      - ./conf/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro,z
+      - ./conf/12-set-dns-server.envsh:/docker-entrypoint.d/12-set-dns-server.envsh:ro,z
+    networks:
+      - ft
+      - monitor_net

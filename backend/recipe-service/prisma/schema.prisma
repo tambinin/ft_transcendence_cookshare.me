@@ -1,0 +1,346 @@
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+    schemas  = ["recipe_service"]
+}
+
+// ==================== RECIPES ====================
+
+model Recipe {
+    id           String     @id @default(uuid())
+    title        String
+    slug         String     @unique
+    description  String
+    prepTime     Int
+    cookTime     Int
+    servings     Int
+    difficulty   Difficulty @default(MEDIUM)
+    isPublished  Boolean    @default(false)
+    viewCount    Int        @default(0)
+    averageScore Float      @default(0)
+    ratingCount  Int        @default(0)
+    createdAt    DateTime   @default(now())
+    updatedAt    DateTime   @updatedAt
+
+    authorId String
+
+    categoryId String
+    category   Category @relation(fields: [categoryId], references: [id])
+
+    ingredients  RecipeIngredient[]
+    instructions Instruction[]
+    images       RecipeImage[]
+    ratings      Rating[]
+    comments     Comment[]
+    favorites    Favorite[]
+    dietaryTags  RecipeDietaryTag[]
+    collections  CollectionRecipe[]
+
+    @@index([authorId])
+    @@index([categoryId])
+    @@index([isPublished])
+    @@index([createdAt])
+    @@index([viewCount])
+    @@index([averageScore])
+    @@index([isPublished, createdAt(sort: Desc)])
+    @@index([isPublished, averageScore(sort: Desc)])
+    @@index([isPublished, viewCount(sort: Desc)])
+    @@schema("recipe_service")
+}
+
+enum Difficulty {
+    EASY
+    MEDIUM
+    HARD
+
+    @@schema("recipe_service")
+}
+
+model Category {
+    id        String  @id @default(uuid())
+    name      String  @unique
+    slug      String  @unique
+    iconName  String?
+    color     String?
+    sortOrder Int     @default(0)
+
+    recipes Recipe[]
+
+    @@index([slug])
+    @@schema("recipe_service")
+}
+
+// ==================== INGREDIENTS ====================
+
+model RecipeIngredient {
+    id           String  @id @default(uuid())
+    name         String
+    quantityText String
+    sortOrder    Int     @default(0)
+    isOptional   Boolean @default(false)
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== INSTRUCTIONS ====================
+
+model Instruction {
+    id          String @id @default(uuid())
+    stepNumber  Int
+    description String
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@unique([recipeId, stepNumber])
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== IMAGES ====================
+
+model RecipeImage {
+    id        String  @id @default(uuid())
+    url       String
+    altText   String?
+    isPrimary Boolean @default(false)
+    sortOrder Int     @default(0)
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== DIETARY TAGS ====================
+
+model DietaryTag {
+    id       String  @id @default(uuid())
+    name     String  @unique
+    slug     String  @unique
+    iconName String?
+
+    recipes RecipeDietaryTag[]
+
+    @@index([slug])
+    @@schema("recipe_service")
+}
+
+model RecipeDietaryTag {
+    id String @id @default(uuid())
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    dietaryTagId String
+    dietaryTag   DietaryTag @relation(fields: [dietaryTagId], references: [id], onDelete: Cascade)
+
+    @@unique([recipeId, dietaryTagId])
+    @@index([recipeId])
+    @@index([dietaryTagId])
+    @@schema("recipe_service")
+}
+
+// ==================== RATINGS & COMMENTS ====================
+
+model Rating {
+    id        String   @id @default(uuid())
+    score     Int
+    createdAt DateTime @default(now())
+
+    userId String
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, recipeId])
+    @@index([recipeId])
+    @@index([userId])
+    @@schema("recipe_service")
+}
+
+model Comment {
+    id        String   @id @default(uuid())
+    content   String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    userId String
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    parentId String?
+    parent   Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+    replies  Comment[] @relation("Replies")
+
+    @@index([recipeId])
+    @@index([userId])
+    @@index([parentId])
+    @@schema("recipe_service")
+}
+
+// ==================== FAVORITES ====================
+
+model Favorite {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+
+    userId String
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, recipeId])
+    @@index([userId])
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== COLLECTIONS ====================
+
+model Collection {
+    id          String   @id @default(uuid())
+    name        String
+    description String?
+    userId      String
+    isPublic    Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    recipes CollectionRecipe[]
+
+    @@index([userId])
+    @@schema("recipe_service")
+}
+
+model CollectionRecipe {
+    id String @id @default(uuid())
+
+    collectionId String
+    collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+    recipeId String
+    recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+    addedAt DateTime @default(now())
+
+    @@unique([collectionId, recipeId])
+    @@index([collectionId])
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== SHOPPING LIST ====================
+
+model ShoppingListItem {
+    id          String   @id @default(uuid())
+    userId      String
+    name        String
+    quantity    String?
+    isChecked   Boolean  @default(false)
+    recipeId    String? // Optional: trace where this item came from
+    recipeTitle String? // Optional: display recipe name in shopping list
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([userId])
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== MEAL PLANNER ====================
+
+enum MealType {
+    BREAKFAST
+    LUNCH
+    DINNER
+    SNACK
+
+    @@schema("recipe_service")
+}
+
+model MealPlan {
+    id        String   @id @default(uuid())
+    userId    String
+    date      DateTime @db.Date
+    mealType  MealType
+    recipeId  String
+    notes     String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, date, mealType])
+    @@index([userId])
+    @@index([date])
+    @@index([recipeId])
+    @@schema("recipe_service")
+}
+
+// ==================== REPORTS ====================
+
+enum ReportType {
+    RECIPE
+    COMMENT
+
+    @@schema("recipe_service")
+}
+
+enum ReportStatus {
+    PENDING
+    REVIEWED
+    RESOLVED
+    DISMISSED
+
+    @@schema("recipe_service")
+}
+
+model Report {
+    id          String       @id @default(uuid())
+    reporterId  String
+    targetType  ReportType
+    targetId    String
+    reason      String
+    description String?
+    status      ReportStatus @default(PENDING)
+    reviewedBy  String?
+    reviewedAt  DateTime?
+    createdAt   DateTime     @default(now())
+
+    @@index([status])
+    @@index([targetType, targetId])
+    @@index([reporterId])
+    @@schema("recipe_service")
+}
+
+// ==================== ANALYTICS ====================
+
+enum InteractionType {
+    VIEW_RECIPE
+    SEARCH
+    FILTER
+
+    @@schema("recipe_service")
+}
+
+model UserInteraction {
+    id        String          @id @default(uuid())
+    userId    String
+    type      InteractionType
+    payload   Json?
+    createdAt DateTime        @default(now())
+
+    @@index([userId])
+    @@index([type])
+    @@index([createdAt])
+    @@schema("recipe_service")
+}

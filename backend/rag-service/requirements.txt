@@ -1,0 +1,14 @@
+langchain==1.2.10
+langchain-community==0.4.1
+langchain-huggingface==1.2.0
+langchain-groq==1.1.2
+langchain-google-genai==4.2.1
+langchain-text-splitters==1.1.1
+pypdf==6.7.4
+faiss-cpu==1.13.2
+fastapi==0.134.0
+uvicorn[standard]==0.41.0
+psycopg2-binary==2.9.10
+sentence-transformers==5.2.3
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.0

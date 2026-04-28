@@ -1,0 +1,26 @@
+
+services:
+  rag-app: 
+    build:
+      context:  .
+      dockerfile: Dockerfile
+    container_name: rag-transcendence
+    # Port NOT exposed on host — Nginx reaches this via http://rag-transcendence:7860
+    expose:
+      - "7860"
+    environment:
+      - PDF_FOLDER=/app/pdfs
+      - DB_PATH=/app/faiss_index
+      - DB_SYNC_INTERVAL=3600
+      - PORT=7860
+    volumes: 
+      - ./pdfs:/app/pdfs
+      - ./faiss_index:/app/faiss_index
+      - vault-secrets:/vault/secrets:ro
+    networks:
+      - ft
+    command: ["sh", "-c", "set -a && . /vault/secrets/rag.env && set +a && uvicorn app:app --host 0.0.0.0 --port 7860"]
+    depends_on:
+      vault-agent-rag:
+        condition: service_completed_successfully
+    restart: unless-stopped

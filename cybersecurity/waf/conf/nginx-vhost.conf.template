@@ -1,0 +1,222 @@
+server {
+    # listen 8080 host_hash;
+    # listen [::]:8080 host_hash;
+    listen 8443 ssl;
+    listen [::]:8443 ssl;
+    http2 on;
+
+    # Accept any hostname: cookshare.me (prod), local IP (dev), or localhost
+    server_name localhost cookshare.me www.cookshare.me _;
+
+    ssl_certificate /etc/nginx/conf/server.crt;
+    ssl_certificate_key /etc/nginx/conf/server.key;
+
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_stapling off;
+    ssl_stapling_verify off;
+
+    # ── Global security headers ──
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+
+    # Hide server version info
+    server_tokens off;
+
+    # ModSecurity
+    modsecurity on;
+    modsecurity_rules_file /etc/modsecurity.d/setup.conf;
+
+    # Use container DNS resolver for dynamic upstream resolution
+    # Supports both Docker (127.0.0.11) and Podman (10.89.x.x) runtimes
+    resolver ${DNS_SERVER} valid=30s ipv6=off;
+
+    # ── Vite HMR WebSocket ──
+    # Dedicated path for Vite Hot Module Replacement WebSocket.
+    # Must use HTTP/1.1 because HTTP/2 does not support the Upgrade mechanism.
+    # ModSecurity is disabled to avoid false positives on dev traffic.
+    location /__vite_hmr {
+        set $frontend_upstream http://front-end:5173;
+        proxy_pass $frontend_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Force HTTP/1.1 for WebSocket upgrade (required — HTTP/2 breaks WS)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Long-lived connection for HMR
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+
+        # Disable ModSecurity for HMR traffic
+        modsecurity off;
+    }
+
+    location / {
+        set $frontend_upstream http://front-end:5173;
+        proxy_pass $frontend_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Prevent caching of HTML (SPA entry point must always be fresh)
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+
+        # WebSocket support (Vite HMR fallback)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Gzip compression for static assets
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    }
+
+    # Cache static assets with long expiry (Vite hashed filenames)
+    location /assets/ {
+        set $frontend_upstream http://front-end:5173;
+        proxy_pass $frontend_upstream;
+        proxy_set_header Host $host;
+
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+    }
+
+    # Cache images (user avatars, recipe photos) with long expiry
+    location /images/ {
+        set $frontend_upstream http://front-end:5173;
+        proxy_pass $frontend_upstream;
+        proxy_set_header Host $host;
+
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header Vary "Accept";
+    }
+
+    # Cache Lottie animations and other static files
+    location /lotties/ {
+        set $frontend_upstream http://front-end:5173;
+        proxy_pass $frontend_upstream;
+        proxy_set_header Host $host;
+
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 9;
+        gzip_types application/json;
+    }
+
+    location /api/ {
+        set $api_upstream https://api-gateway:3001;
+        proxy_pass $api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Prevent caching of API responses (auth tokens, user data, etc.)
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+
+        # Handling long requests for file uploads
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        client_max_body_size 10M;
+    }
+
+    # Metrics endpoint for Prometheus scraping
+    location /metrics {
+        set $api_upstream https://api-gateway:3001;
+        proxy_pass $api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Prevent caching of metrics
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # WebSocket service (Socket.IO)
+    # Handles both WebSocket transport and HTTP long-polling fallback.
+    # The `map $http_upgrade $connection_upgrade` in nginx.conf ensures
+    # the Connection header is correct for both transport types.
+    location /ws/ {
+        set $ws_upstream https://websocket:3007;
+        rewrite ^/ws/(.*) /$1 break;
+        proxy_pass $ws_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket upgrade support — uses map variable for conditional upgrade
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # Timeouts for long-lived WebSocket connections
+        proxy_connect_timeout 7d;
+        proxy_send_timeout 7d;
+        proxy_read_timeout 7d;
+
+        # Disable buffering for real-time data
+        proxy_buffering off;
+        proxy_cache off;
+
+        # Disable ModSecurity for WebSocket traffic
+        modsecurity off;
+    }
+
+    # RAG AI assistant service
+    location /rag/ {
+        modsecurity off;
+        set $rag_upstream http://rag-transcendence:7860;
+        rewrite ^/rag/(.*) /$1 break;
+        proxy_pass $rag_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Mark requests as coming from the trusted Nginx reverse proxy.
+        # The RAG service checks this header to verify the request was
+        # routed through the WAF and not called directly.
+        proxy_set_header X-Forwarded-By "cookshare-waf";
+
+        # RAG responses can be slow
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+
+}
+

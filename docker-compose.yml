@@ -1,0 +1,41 @@
+networks:
+  ft:
+    driver: bridge
+    name: transcendence-net
+  monitor_net:
+    driver: bridge
+    name: monitoring-net
+
+volumes:
+  prometheus_data:
+    name: prom-data
+  grafana_data:
+    name: graf-data
+  db_data:
+    name: db-data
+  vault-tokens:
+    name: vault-tokens
+  auth-secrets:
+    name: auth-secrets
+  user-secrets:
+    name: user-secrets
+  recipe-secrets:
+    name: recipe-secrets
+  chat-secrets:
+    name: chat-secrets
+  notification-secrets:
+    name: notification-secrets
+  websocket-secrets:
+    name: websocket-secrets
+  api-gateway-secrets:
+    name: api-gateway-secrets
+
+include:
+  - cybersecurity/vault/docker-compose.yml
+  - cybersecurity/waf/docker-compose.yml
+  - docker/redis/compose.yml
+  - docker/elk/compose.yml
+  - docker/monitoring/compose.yml
+  - docker/nodjs/compose.yml
+  - backend/rag-service/docker-compose.yml
+

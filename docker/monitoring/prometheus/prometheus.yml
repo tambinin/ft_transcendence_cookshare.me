@@ -1,0 +1,80 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # - job_name: "vault"
+  #   static_configs:
+  #     - targets: ["vault:8200"]
+  #   metrics_path: "/v1/sys/metrics"
+  #   params:
+  #     format: ["prometheus"]
+  #   authorization:
+  #     credentials: "root"
+  #   scrape_interval: 30s
+
+  - job_name: "api-gateway"
+    static_configs:
+      - targets: ["api-gateway:3001"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "recipe-service"
+    static_configs:
+      - targets: ["recipe:3002"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "auth-service"
+    static_configs:
+      - targets: ["auth:3003"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "user-service"
+    static_configs:
+      - targets: ["user:3004"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "chat-service"
+    static_configs:
+      - targets: ["chat:3005"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "notification-service"
+    static_configs:
+      - targets: ["notification:3006"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "websocket-service"
+    static_configs:
+      - targets: ["websocket:3007"]
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true

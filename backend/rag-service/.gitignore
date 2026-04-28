@@ -1,0 +1,59 @@
+# 🔒 Secrets - NE JAMAIS COMMITER
+.env
+.env.local
+.env.production
+*.key
+*.pem
+secrets/
+/secrets
+
+# 🗄️ Data et modèles
+data/
+*.faiss
+*.pkl
+*.bin
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 📄 PDFs et documents
+pdfs/
+*.pdf
+
+# 🤖 Modèles ML
+models/
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# 📊 Logs
+logs/
+*.log
+*.out
+
+# 🧪 Tests
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 🔧 IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 🐍 Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 💾 Cache
+.cache/
+*.cache
+
+# 🌐 Gradio
+flagged/

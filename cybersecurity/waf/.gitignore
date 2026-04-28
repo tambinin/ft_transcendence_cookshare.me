@@ -1,0 +1,19 @@
+# Logs générés par ModSecurity
+logs/*
+!logs/.gitkeep
+!logs/nginx/
+logs/nginx/*
+!logs/nginx/.gitkeep
+*.log
+
+# Fichiers temporaires de test
+*.tmp
+*.bak
+
+# Fichiers de test personnels
+hack.php
+photo.jpj
+
+# Certificats de développement - NE PAS COMMITTER
+certs/*.pem
+certs/*.key

@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: docker.io/library/redis:alpine
+    container_name: redis
+    restart: "no"
+    ports:
+      - "6380:6379"
+    networks:
+      - ft
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

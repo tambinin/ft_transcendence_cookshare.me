@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["notification_service"]
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  userId String
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@schema("notification_service")
+}
+
+enum NotificationType {
+  NEW_FOLLOWER
+  NEW_FRIEND_REQUEST
+  FRIEND_REQUEST_ACCEPTED
+  FRIEND_REQUEST_REJECTED
+  NEW_COMMENT
+  NEW_RATING
+  NEW_MESSAGE
+  RECIPE_FAVORITED
+  NEW_RECIPE
+
+  @@schema("notification_service")
+}

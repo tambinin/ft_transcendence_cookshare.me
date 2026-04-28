@@ -1,0 +1,2 @@
+// This is a conceptual check, as typing indicators will be implemented in websocket-service
+// We need to update websocket-service/src/services/socket.service.ts

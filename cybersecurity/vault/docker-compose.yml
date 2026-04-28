@@ -1,0 +1,377 @@
+#shared networks
+networks:
+  vault-network:
+    driver: bridge
+    name: vault-network
+  ft:
+    driver: bridge
+    name: transcendence-net
+
+# shared volume where vault tokens will be stored
+volumes:
+  vault-1-data:
+  vault-2-data:
+  vault-3-data:
+  vault-tls:
+  vault-keys:
+  vault-approle:
+  vault-secrets:
+
+services:
+  # ============================================
+  # VAULT TLS INIT (copy certs with correct permissions)
+  # ============================================
+  vault-tls-init:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-tls-init
+    user: "0:0"
+    volumes:
+      - ./tls:/tls-src:ro,z
+      - vault-tls:/vault/tls:z
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cp /tls-src/*.pem /vault/tls/ &&
+        chown -R vault:vault /vault/tls &&
+        chmod 644 /vault/tls/vault-cert.pem &&
+        chmod 640 /vault/tls/vault-key.pem
+    restart: "no"
+
+  # ============================================
+  # VAULT CLUSTER (3 nodes)
+  # Each node runs as root, fixes /vault/data permissions,
+  # then drops to vault user via su-exec.
+  # This is required for Podman rootless UID remapping.
+  # ============================================
+  vault-1:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-1
+    user: "0:0"
+    depends_on:
+      vault-tls-init:
+        condition: service_completed_successfully
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./config/vault-1.hcl:/vault/config/vault.hcl:z
+      - vault-tls:/vault/tls
+      - vault-1-data:/vault/data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        chown -R vault:vault /vault/data /vault/tls &&
+        chmod -R 750 /vault/data &&
+        chmod 644 /vault/tls/vault-cert.pem &&
+        chmod 640 /vault/tls/vault-key.pem &&
+        su-exec vault vault server -config=/vault/config/vault.hcl
+    environment:
+      - VAULT_ADDR=https://vault-1:8200
+      - VAULT_CACERT=/vault/tls/vault-cert.pem
+    networks:
+      - vault-network
+      - ft
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_SKIP_VERIFY=true vault status -address=https://127.0.0.1:8200; s=$$?; [ $$s -eq 0 ] || [ $$s -eq 2 ]"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    restart: always
+  
+  vault-2:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-2
+    user: "0:0"
+    depends_on:
+      vault-tls-init:
+        condition: service_completed_successfully
+    ports:
+      - "8201:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./config/vault-2.hcl:/vault/config/vault.hcl:z
+      - vault-tls:/vault/tls
+      - vault-2-data:/vault/data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        chown -R vault:vault /vault/data /vault/tls &&
+        chmod -R 750 /vault/data &&
+        chmod 644 /vault/tls/vault-cert.pem &&
+        chmod 640 /vault/tls/vault-key.pem &&
+        su-exec vault vault server -config=/vault/config/vault.hcl
+    environment:
+      - VAULT_ADDR=https://vault-2:8200
+      - VAULT_CACERT=/vault/tls/vault-cert.pem
+    networks:
+      - vault-network
+      - ft
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_SKIP_VERIFY=true vault status -address=https://127.0.0.1:8200; s=$$?; [ $$s -eq 0 ] || [ $$s -eq 2 ]"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    restart: always
+  
+  vault-3:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-3
+    user: "0:0"
+    depends_on:
+      vault-tls-init:
+        condition: service_completed_successfully
+    ports:
+      - "8202:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./config/vault-3.hcl:/vault/config/vault.hcl:z
+      - vault-tls:/vault/tls
+      - vault-3-data:/vault/data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        chown -R vault:vault /vault/data /vault/tls &&
+        chmod -R 750 /vault/data &&
+        chmod 644 /vault/tls/vault-cert.pem &&
+        chmod 640 /vault/tls/vault-key.pem &&
+        su-exec vault vault server -config=/vault/config/vault.hcl
+    environment:
+      - VAULT_ADDR=https://vault-3:8200
+      - VAULT_CACERT=/vault/tls/vault-cert.pem
+    networks:
+      - vault-network
+      - ft
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_SKIP_VERIFY=true vault status -address=https://127.0.0.1:8200; s=$$?; [ $$s -eq 0 ] || [ $$s -eq 2 ]"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    restart: always
+
+  # ============================================
+  # VAULT INIT (one-time initialization)
+  # ============================================
+  vault-init:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-init
+    depends_on:
+      vault-1:
+        condition: service_healthy
+      vault-2:
+        condition: service_healthy
+      vault-3:
+        condition: service_healthy
+    volumes:
+      - ./scripts/init-vault-cluster.sh:/vault/scripts/init-vault-cluster.sh:ro,z
+      - ./secrets:/vault/secrets:ro,z
+      - vault-tls:/vault/tls:ro,z
+      - vault-keys:/vault/keys:z
+      - vault-approle:/vault/approle:z
+    environment:
+      - VAULT_CACERT=/vault/tls/vault-cert.pem
+      - VAULT_SKIP_VERIFY=true
+      - AUTH_DATABASE_URL
+      - RECIPE_DATABASE_URL
+      - USER_DATABASE_URL
+      - NOTIFICATION_DATABASE_URL
+      - CHAT_DATABASE_URL
+      - API_GATEWAY_KEY
+      - API_MASTER_SECRET
+      - INTERNAL_API_KEY
+      - GROQ_API_KEY
+      - JWT_SECRET
+      - COOKIE_SECRET
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - BREVO_API_KEY
+      - BREVO_SMTP_KEY
+      - CLOUDINARY_CLOUD_NAME
+      - CLOUDINARY_API_KEY
+      - CLOUDINARY_API_SECRET
+      - CLOUDINARY_URL
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+      - DOMAIN
+      - SERVER_URL
+      - CORS_ORIGINS
+      - API_GATEWAY_URL
+      - RECIPE_SERVICE_URL
+      - AUTH_SERVICE_URL
+      - USER_SERVICE_URL
+      - CHAT_SERVICE_URL
+      - NOTIFICATION_SERVICE_URL
+      - WEBSOCKET_SERVICE_URL
+      - TLS_KEY_PATH
+      - TLS_CERT_PATH
+      - CLOUDFLARED_TUNNEL_TOKEN
+    command: ["sh", "-c", "sleep 5 && /vault/scripts/init-vault-cluster.sh"]
+    networks:
+      - vault-network
+      - ft
+    restart: "no"
+
+  # ============================================
+  # VAULT AGENTS (one per service, exit-after-auth)
+  # ============================================
+  vault-agent-api-gateway:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-api-gateway
+    command: >
+      sh -c "vault agent -config=/vault/config/api-gateway-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/api-gateway-agent.hcl:/vault/config/api-gateway-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-auth:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-auth
+    command: >
+      sh -c "vault agent -config=/vault/config/auth-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/auth-agent.hcl:/vault/config/auth-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-user:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-user
+    command: >
+      sh -c "vault agent -config=/vault/config/user-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/user-agent.hcl:/vault/config/user-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-recipe:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-recipe
+    command: >
+      sh -c "vault agent -config=/vault/config/recipe-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/recipe-agent.hcl:/vault/config/recipe-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-chat:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-chat
+    command: >
+      sh -c "vault agent -config=/vault/config/chat-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/chat-agent.hcl:/vault/config/chat-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-notification:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-notification
+    command: >
+      sh -c "vault agent -config=/vault/config/notification-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/notification-agent.hcl:/vault/config/notification-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-websocket:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-websocket
+    command: >
+      sh -c "vault agent -config=/vault/config/websocket-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/websocket-agent.hcl:/vault/config/websocket-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  vault-agent-rag:
+    image: hashicorp/vault:1.13.3
+    container_name: vault-agent-rag
+    command: >
+      sh -c "vault agent -config=/vault/config/rag-agent.hcl -exit-after-auth"
+    volumes:
+      - vault-approle:/vault/approle:ro
+      - vault-tls:/vault/tls:ro
+      - ./agent-configs/rag-agent.hcl:/vault/config/rag-agent.hcl:ro,z
+      - ./templates:/vault/templates:ro,z
+      - vault-secrets:/vault/secrets
+    networks:
+      - vault-network
+      - ft
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    restart: "no"

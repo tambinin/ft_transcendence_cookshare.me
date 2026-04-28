@@ -1,0 +1,11 @@
+{
+  "name": "vault-test-backend",
+  "version": "1.0.0",
+  "main": "test-backend.js",
+  "scripts": {
+    "start": "node test-backend.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  }
+}

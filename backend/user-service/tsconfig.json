@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "outDir": "dist",
+        "rootDir": "src",
+        "sourceMap": true,
+        "module": "commonjs",
+        "target": "ES2022",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "allowJs": true
+    },
+    "exclude": [
+        "prisma.config.ts",
+        "prisma",
+        "test_gamification.ts",
+        "scripts"
+    ]
+}

@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== USERS ====================
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  username        String       @unique
+  password        String?
+  firstName       String?
+  lastName        String?
+  bio             String?
+  avatarUrl       String?      @default("/default-avatar.png")
+  isOnline        Boolean      @default(false)
+  lastSeenAt      DateTime?
+  role            UserRole     @default(USER)
+  isSuperAdmin    Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  isEmailVerified Boolean      @default(false)
+  googleId        String?      @unique
+  provider        AuthProvider @default(LOCAL)
+
+  xp     Int         @default(0)
+  level  Int         @default(1)
+  badges UserBadge[]
+
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  followers               Follow[]                 @relation("Following")
+  following               Follow[]                 @relation("Followers")
+  friendRequestsSent      FriendRequest[]          @relation("FriendRequestSent")
+  friendRequestsReceived  FriendRequest[]          @relation("FriendRequestReceived")
+  blocksSent              Block[]                  @relation("BlocksSent")
+  blocksReceived          Block[]                  @relation("BlocksReceived")
+  accountDeletionTokens   AccountDeletionToken[]
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([googleId])
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+// ==================== FRIEND REQUESTS ====================
+model FriendRequest {
+  id        String              @id @default(uuid())
+  status    FriendRequestStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  senderId String
+  sender   User   @relation("FriendRequestSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User   @relation("FriendRequestReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ==================== FOLLOWERS ====================
+model Follow {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  followerId String
+  follower   User   @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+
+  followingId String
+  following   User   @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ==================== PASSWORD RESET TOKENS ====================
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@index([token])
+}
+
+// ==================== EMAIL VERIFICATION TOKENS ====================
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@index([token])
+}
+
+// ==================== BLOCKS ====================
+model Block {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  blockerId String
+  blocker   User   @relation("BlocksSent", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  blockedId String
+  blocked   User   @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+// ==================== ACCOUNT DELETION TOKENS (GDPR) ====================
+model AccountDeletionToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ==================== GAMIFICATION ====================
+model Badge {
+  id          String      @id @default(uuid())
+  slug        String      @unique
+  name        String
+  description String
+  iconUrl     String
+  condition   String?
+  type        String // e.g., 'RECIPE_COUNT', 'FOLLOWER_COUNT'
+  threshold   Int // e.g., 1, 10, 50
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}

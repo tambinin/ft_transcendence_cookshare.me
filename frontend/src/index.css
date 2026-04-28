@@ -1,0 +1,212 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@font-face {
+  font-family: 'GoogleSansFlex';
+  src: url('./assets/font/GoogleSansFlex.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/font/DMSerifDisplay-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/font/DMSerifDisplay-Italic.woff2') format('woff2');
+}
+
+:root {
+  /* Design tokens — Warm Kitchen Noir */
+  --cook-bg: #18191a;
+  --cook-bg-elevated: #1e1f20;
+  --cook-bg-surface: #242526;
+  --cook-accent: #f59e0b;
+  --cook-accent-warm: #ea580c;
+  --cook-text: #e4e6eb;
+  --cook-text-muted: rgba(255, 255, 255, 0.5);
+
+  font-family: 'GoogleSansFlex', 'Inter', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: var(--cook-text);
+  background-color: var(--cook-bg);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography utilities */
+.text-heading {
+  font-family: 'DM Serif Display', serif;
+}
+
+.text-body {
+  font-family: 'GoogleSansFlex', 'Inter', sans-serif;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+/* Page transition — use opacity only to avoid transform breaking sticky positioning */
+.page-enter {
+  animation: pageEnter 0.3s ease-out both;
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+.carousel-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.carousel-item-enter {
+  opacity: 0;
+}
+
+.carousel-item-active {
+  opacity: 1;
+}
+
+.carousel-item-exit {
+  opacity: 0;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ChatBot scrollbar */
+.chatbot-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.chatbot-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.chatbot-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chatbot-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.chatbot-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ChatBot markdown styling */
+.chatbot-markdown {
+  text-align: left;
+  word-break: break-word;
+}
+.chatbot-markdown p {
+  margin: 0 0 0.4em 0;
+}
+.chatbot-markdown p:last-child {
+  margin-bottom: 0;
+}
+.chatbot-markdown strong {
+  font-weight: 700;
+  color: #fff;
+}
+.chatbot-markdown em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.85);
+}
+.chatbot-markdown ul,
+.chatbot-markdown ol {
+  margin: 0.3em 0;
+  padding-left: 1.4em;
+}
+.chatbot-markdown li {
+  margin: 0.15em 0;
+}
+.chatbot-markdown ol {
+  list-style-type: decimal;
+}
+.chatbot-markdown ul {
+  list-style-type: disc;
+}
+.chatbot-markdown h1,
+.chatbot-markdown h2,
+.chatbot-markdown h3 {
+  font-weight: 700;
+  color: #fff;
+  margin: 0.5em 0 0.25em 0;
+  font-size: 1em;
+}
+.chatbot-markdown code {
+  background: rgba(255, 140, 66, 0.15);
+  color: #ffb380;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+}
+.chatbot-markdown pre {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.6em 0.8em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.4em 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.chatbot-markdown pre code {
+  background: none;
+  color: #e2e8f0;
+  padding: 0;
+}
+.chatbot-markdown blockquote {
+  border-left: 3px solid #ff8c42;
+  padding-left: 0.6em;
+  margin: 0.3em 0;
+  opacity: 0.9;
+}
+.chatbot-markdown a {
+  color: #ff8c42;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chatbot-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.5em 0;
+}

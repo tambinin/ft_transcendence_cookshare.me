@@ -1,0 +1,33 @@
+{
+    "name": "transcendence-backend",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Backend monorepo for Transcendence",
+    "workspaces": [
+        "common",
+        "api-gateway",
+        "auth-service",
+        "user-service",
+        "recipe-service",
+        "chat-service",
+        "notification-service",
+        "websocket-service"
+    ],
+    "scripts": {
+        "install:all": "npm install",
+        "build:common": "npm run build --workspace=common",
+        "build:all": "npm run build:common && npm run prisma:generate && npm run build:services",
+        "prisma:generate": "npm run generate --workspace=auth-service --workspace=user-service --workspace=recipe-service --workspace=notification-service --workspace=chat-service --if-present",
+        "build:services": "npm run build --workspaces --if-present",
+        "start:prod": "concurrently -k -p \"[{name}]\" -n \"GATEWAY,AUTH,USER,RECIPE,CHAT,NOTIF,WS\" -c \"cyan,magenta,blue,green,yellow,red,white\" \"npm --workspace=api-gateway run start\" \"npm --workspace=auth-service run start\" \"npm --workspace=user-service run start\" \"npm --workspace=recipe-service run start\" \"npm --workspace=chat-service run start\" \"npm --workspace=notification-service run start\" \"npm --workspace=websocket-service run start\""
+    },
+    "devDependencies": {
+        "@types/node": "^25.0.8",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+        "@fastify/cookie": "^11.0.2",
+        "concurrently": "^9.2.1"
+    }
+}
